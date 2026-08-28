@@ -16,7 +16,10 @@ $script:AppsDevTools = @(
     @{ Id = "Docker.DockerDesktop"; Nome = "Docker Desktop" }
     @{ Id = "DBeaver.DBeaver.Community"; Nome = "DBeaver CE" }
     @{ Id = "Postman.Postman"; Nome = "Postman" }
-    @{ Id = "DevToys-app.DevToys"; Nome = "DevToys" }
+    # O pacote "DevToys-app.DevToys" do winget é a build preview (2.0-preview.x)
+    # apesar do nome não deixar isso claro - "9PGCV4V3BK4W" é a estável de
+    # verdade (1.0.x), vem da Microsoft Store.
+    @{ Id = "9PGCV4V3BK4W"; Nome = "DevToys" }
 )
 
 $script:AppsComunicacaoMidia = @(

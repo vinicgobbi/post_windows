@@ -19,17 +19,30 @@
     New-Item -Path $searchKey -Force | Out-Null
     Set-ItemProperty -Path $searchKey -Name "SearchboxTaskbarMode" -Value 0 -Type DWord -Force
 
+    # Desliga a seção "Recomendado" do menu Iniciar (arquivos recentes, dicas
+    # e apps promovidos) - política de máquina + os dois toggles por usuário
+    # que ainda existem por baixo dela.
+    $explorerPolicyKey = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\Explorer"
+    New-Item -Path $explorerPolicyKey -Force | Out-Null
+    Set-ItemProperty -Path $explorerPolicyKey -Name "HideRecommendedSection" -Value 1 -Type DWord -Force
+
+    Set-ItemProperty -Path $explorerKey -Name "Start_TrackDocs" -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
+    Set-ItemProperty -Path $explorerKey -Name "Start_IrisRecommendations" -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
+
     # SearchHost.exe é quem de fato renderiza a caixa de pesquisa da barra de
     # tarefas - só reiniciar o Explorer não é suficiente, o valor antigo
-    # (cacheado) volta sozinho se esse processo continuar de pé.
+    # (cacheado) volta sozinho se esse processo continuar de pé. Reinicia
+    # também o StartMenuExperienceHost para a política de "Recomendado" valer
+    # já nesta sessão, sem precisar de logoff.
     Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
     Stop-Process -Name SearchHost -Force -ErrorAction SilentlyContinue
+    Stop-Process -Name StartMenuExperienceHost -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 1
     Start-Process explorer.exe
 
-    Write-Sucesso "Tema escuro, extensões de arquivo visíveis, menu centralizado e barra de pesquisa oculta."
+    Write-Sucesso "Tema escuro, extensões de arquivo visíveis, menu centralizado, barra de pesquisa oculta e recomendações do menu Iniciar desativadas."
 }
 
 Register-Modulo -Id "customizacao_windows" -Titulo "Customização visual do Windows" `
-    -Descricao "Tema escuro, mostrar extensões de arquivo, menu Iniciar centralizado e ocultar a barra de pesquisa (Widgets fica)" `
+    -Descricao "Tema escuro, mostrar extensões de arquivo, menu Iniciar centralizado, ocultar barra de pesquisa e desativar recomendações do menu Iniciar (Widgets fica)" `
     -Funcao ${function:Set-CustomizacaoVisual}
