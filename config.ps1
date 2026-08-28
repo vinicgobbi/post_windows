@@ -44,6 +44,11 @@ $script:AppsUtilitariosRede = @(
 # licença for Microsoft 365 Personal/Family, troque para "O365HomePremRetail".
 $script:OfficeProductId = "O365ProPlusRetail"
 
+# Repo de dotfiles pessoal (módulo 18_powershell_profile) - de onde vem a
+# config do Oh My Posh (tema "detail", aliases, editor). Troque se for fork
+# ou repo próprio diferente.
+$script:DotfilesRepoUrl = "https://github.com/vinicgobbi/Dotfiles.git"
+
 $script:AppsJogos = @(
     @{ Id = "Valve.Steam"; Nome = "Steam" }
     @{ Id = "HeroicGamesLauncher.HeroicGamesLauncher"; Nome = "Heroic Games Launcher" }

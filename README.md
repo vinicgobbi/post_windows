@@ -84,7 +84,7 @@ modules/
   15_ovpn.ps1                   # OpenVPN GUI + importa perfis de ./OVPN
   16_claude_code.ps1
   17_rust_tools.ps1             # rustup, eza, topgrade (binários nativos, sem compilar)
-  18_powershell_profile.ps1     # Oh My Posh no perfil do PowerShell (equivalente ao Zsh/Oh My Zsh)
+  18_powershell_profile.ps1     # PowerShell 7 + Oh My Posh com config pessoal do repo de Dotfiles (equivalente ao Zsh/Oh My Zsh)
   19_customizacao_windows.ps1   # tema escuro, extensões de arquivo, barra de tarefas
   20_performance.ps1            # Delivery Optimization, Storage Sense, startup, Defender, energia
   21_debloat.ps1                # remove bloatware e sugestões do Windows
