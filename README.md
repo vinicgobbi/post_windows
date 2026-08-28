@@ -8,7 +8,8 @@ fnm/Node.js, PHP + driver SQL Server, Bitwarden, Telegram, Vesktop
 jogos (Steam, Heroic, Epic Games Launcher, GOG Galaxy, Prism Launcher),
 WinBox, qBittorrent, FileZilla, VirtualBox, Tailscale, Logi Options+,
 importação de perfis OpenVPN, Claude Code, Rust (rustup, eza, topgrade),
-Oh My Posh (perfil do PowerShell) e customização/debloat do Windows.
+Oh My Posh (perfil do PowerShell), customização/debloat do Windows e
+otimizações de desempenho (sem mexer em efeitos visuais).
 
 Contraparte do [`post_install`](../post_install) (Linux), adaptada às
 diferenças reais do Windows — ver "Limitações conhecidas" no final.
@@ -85,8 +86,9 @@ modules/
   17_rust_tools.ps1             # rustup, eza, topgrade (binários nativos, sem compilar)
   18_powershell_profile.ps1     # Oh My Posh no perfil do PowerShell (equivalente ao Zsh/Oh My Zsh)
   19_customizacao_windows.ps1   # tema escuro, extensões de arquivo, barra de tarefas
-  20_debloat.ps1                # remove bloatware e sugestões do Windows
-  21_limpeza.ps1                # limpa temporários e cache do Chocolatey
+  20_performance.ps1            # Delivery Optimization, Storage Sense, startup, Defender, energia
+  21_debloat.ps1                # remove bloatware e sugestões do Windows
+  22_limpeza.ps1                # limpa temporários e cache do Chocolatey
 OVPN/                           # coloque aqui os .ovpn a importar (ver OVPN/README.md)
 ```
 
