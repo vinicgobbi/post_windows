@@ -31,6 +31,12 @@ if (-not (Test-IsAdministrator)) {
     $psi.FileName = $exePath
     $psi.Arguments = "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`""
     $psi.Verb = "runas"
+    # UseShellExecute precisa ser explicitamente $true para o Verb "runas"
+    # ter efeito. No .NET Framework (Windows PowerShell 5.1) o padrão já é
+    # $true, mas no .NET moderno (PowerShell 7/pwsh) o padrão é $false - sem
+    # isso aqui o "runas" é ignorado em silêncio (sem UAC, sem erro) e o
+    # processo reabre sem elevar, causando um loop infinito de reaberturas.
+    $psi.UseShellExecute = $true
     try {
         [System.Diagnostics.Process]::Start($psi) | Out-Null
     } catch {
