@@ -7,6 +7,8 @@
     #
     # Teams (Chat) e Widgets ficam de fora de propósito - mantidos por pedido
     # explícito. Vincular ao Celular (YourPhone) também não entra - em uso.
+    # Outlook novo (Microsoft.OutlookForWindows) também fica - mantido por
+    # pedido explícito, mesmo duplicando o Outlook clássico do M365.
     $padroes = @(
         "Microsoft.MicrosoftOfficeHub"
         "Microsoft.MicrosoftSolitaireCollection"
@@ -16,14 +18,27 @@
         "Microsoft.WindowsFeedbackHub"
         "Microsoft.Print3D"
         "Microsoft.3DBuilder"
+        "Microsoft.Microsoft3DViewer"
         "Microsoft.ZuneMusic"
         "Microsoft.ZuneVideo"
         "Microsoft.BingWeather"
         "Microsoft.BingNews"
+        "Microsoft.BingSearch"
+        "Microsoft.Copilot"
+        # Cortana - id de pacote não segue o padrão "Microsoft.<Nome>" de
+        # propósito (é o id real do pacote na Store).
+        "Microsoft.549981C3F5F10"
         "Clipchamp.Clipchamp"
         "Microsoft.SkypeApp"
         "Microsoft.Todos"
         "Microsoft.People"
+        "Microsoft.WindowsMaps"
+        "Microsoft.WindowsAlarms"
+        "Microsoft.WindowsSoundRecorder"
+        "Microsoft.Wallet"
+        # Correio e Calendário nativos - substituídos pelo Outlook novo, que
+        # fica instalado (ver comentário acima sobre Microsoft.OutlookForWindows).
+        "microsoft.windowscommunicationsapps"
         # Família Xbox/Game Bar - sem uso de Game Pass/gravação de clipes;
         # Steam/Epic/GOG já têm overlay próprio.
         "Microsoft.GamingApp"
@@ -35,17 +50,25 @@
     )
 
     foreach ($padrao in $padroes) {
-        Get-AppxPackage -AllUsers -Name $padrao -ErrorAction SilentlyContinue | Remove-AppxPackage -ErrorAction SilentlyContinue
+        # AllUsers às vezes falha com 0x80070002 mesmo com o pacote presente;
+        # nesse caso a remoção "por usuário atual" (sem -AllUsers) resolve.
+        $pacotes = Get-AppxPackage -AllUsers -Name $padrao -ErrorAction SilentlyContinue
+        foreach ($pacote in $pacotes) {
+            $pacote | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
+            $pacote | Remove-AppxPackage -ErrorAction SilentlyContinue
+        }
         Get-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue |
             Where-Object { $_.DisplayName -eq $padrao } |
             Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Out-Null
     }
 
     # Desliga a reinstalação automática de "apps sugeridos" e os anúncios do menu Iniciar.
-    $cloudContentKey = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent"
-    New-Item -Path $cloudContentKey -Force | Out-Null
-    Set-ItemProperty -Path $cloudContentKey -Name "DisableWindowsConsumerFeatures" -Value 1 -Type DWord -Force
-
+    #
+    # NÃO usar "DisableWindowsConsumerFeatures" aqui: essa política também
+    # esconde a página inteira de "Telefone"/Vincular ao Celular (Your Phone)
+    # em Configurações, mesmo com o app instalado - contradiz o "em uso"
+    # citado acima. As duas chaves abaixo já cobrem "não instalar apps
+    # sugeridos sozinho" sem esse efeito colateral.
     $contentDeliveryKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
     New-Item -Path $contentDeliveryKey -Force | Out-Null
     Set-ItemProperty -Path $contentDeliveryKey -Name "SystemPaneSuggestionsEnabled" -Value 0 -Type DWord -Force
@@ -86,5 +109,5 @@
 }
 
 Register-Modulo -Id "debloat" -Titulo "Remover bloatware do Windows" `
-    -Descricao "Remove apps pré-instalados (incl. família Xbox/Game Bar) e desativa apps/anúncios sugeridos, busca web e tarefas de telemetria" `
+    -Descricao "Remove apps pré-instalados (incl. família Xbox/Game Bar, Cortana, Copilot, Bing Search) e desativa apps/anúncios sugeridos, busca web e tarefas de telemetria" `
     -Funcao ${function:Remove-BloatwareWindows}
