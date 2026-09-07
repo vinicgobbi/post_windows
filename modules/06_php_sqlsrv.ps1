@@ -52,15 +52,13 @@ function Install-Composer {
 function Install-PhpSqlsrv {
     Write-Info "Instalando PHP, Composer, driver ODBC 18 e as extensões sqlsrv/pdo_sqlsrv..."
 
-    Install-WingetApp -Id "PHP.PHP.8.4" -Nome "PHP 8.4 (thread-safe)" | Out-Null
-    Update-SessionPath
-    Install-Composer
-    Install-WingetApp -Id "Microsoft.msodbcsql.18" -Nome "Microsoft ODBC Driver 18 for SQL Server" | Out-Null
+    Install-WingetApp -Id "PHP.PHP.8.5" -Nome "PHP 8.5 (thread-safe)" | Out-Null
     Update-SessionPath
 
     $phpCmd = Get-Command php.exe -ErrorAction SilentlyContinue
     if (-not $phpCmd) {
-        Write-Aviso "php.exe não encontrado no PATH após a instalação; pulando as extensões sqlsrv."
+        Write-Aviso "php.exe não encontrado no PATH após a instalação; pulando Composer e as extensões sqlsrv."
+        Install-WingetApp -Id "Microsoft.msodbcsql.18" -Nome "Microsoft ODBC Driver 18 for SQL Server" | Out-Null
         return
     }
 
@@ -74,15 +72,41 @@ function Install-PhpSqlsrv {
     $extDir = Join-Path $phpDir "ext"
     $phpIni = Join-Path $phpDir "php.ini"
 
+    # O pacote do winget só vem com php.ini-production/-development como
+    # modelo, sem um php.ini ativo - ou seja, todas as extensões ficam
+    # desativadas. Precisa existir ANTES do Composer rodar: o instalador dele
+    # (composer-setup.php) precisa de openssl pra baixar/verificar o Composer
+    # via HTTPS, e falha em silêncio sem gerar o composer.phar se a extensão
+    # não estiver disponível.
     if (-not (Test-Path $phpIni)) {
         $phpIniProd = Join-Path $phpDir "php.ini-production"
         if (Test-Path $phpIniProd) {
             Copy-Item $phpIniProd $phpIni
         } else {
-            Write-Aviso "php.ini não encontrado em $phpDir; pulando as extensões sqlsrv."
-            return
+            Write-Aviso "php.ini não encontrado em $phpDir; Composer e as extensões sqlsrv podem falhar."
         }
     }
+
+    # Mesmo com o php.ini presente, o template vem com "extension=openssl"
+    # (e curl/mbstring, que o Composer também usa) comentados por padrão -
+    # sem descomentar isso o Composer continua sem HTTPS e falha do mesmo
+    # jeito. Só mexe nas linhas comentadas (regex com "^;"), não sobrescreve
+    # nada que o usuário já tenha habilitado/configurado manualmente.
+    if (Test-Path $phpIni) {
+        $iniConteudo = Get-Content -Path $phpIni -Raw
+        $iniOriginal = $iniConteudo
+        foreach ($extensao in @('openssl', 'curl', 'mbstring')) {
+            $iniConteudo = [regex]::Replace($iniConteudo, "(?m)^;\s*extension\s*=\s*$extensao\s*$", "extension=$extensao")
+        }
+        $iniConteudo = [regex]::Replace($iniConteudo, '(?m)^;extension_dir\s*=\s*"ext"\s*$', 'extension_dir = "ext"')
+        if ($iniConteudo -ne $iniOriginal) {
+            Set-Content -Path $phpIni -Value $iniConteudo -NoNewline
+        }
+    }
+
+    Install-Composer
+    Install-WingetApp -Id "Microsoft.msodbcsql.18" -Nome "Microsoft ODBC Driver 18 for SQL Server" | Out-Null
+    Update-SessionPath
 
     # Baixa a release mais recente do driver oficial da Microsoft (DLLs
     # pré-compiladas - no Windows não dá pra usar PECL/compilar como no Linux).
@@ -100,8 +124,8 @@ function Install-PhpSqlsrv {
     if (Test-Path $extractPath) { Remove-Item $extractPath -Recurse -Force }
     Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
 
-    $sqlsrvDll = "php_sqlsrv_84_ts_x64.dll"
-    $pdoSqlsrvDll = "php_pdo_sqlsrv_84_ts_x64.dll"
+    $sqlsrvDll = "php_sqlsrv_85_ts_x64.dll"
+    $pdoSqlsrvDll = "php_pdo_sqlsrv_85_ts_x64.dll"
     $origemSqlsrv = Get-ChildItem -Path $extractPath -Filter $sqlsrvDll -Recurse | Select-Object -First 1
     $origemPdo = Get-ChildItem -Path $extractPath -Filter $pdoSqlsrvDll -Recurse | Select-Object -First 1
 
@@ -129,5 +153,5 @@ function Install-PhpSqlsrv {
 }
 
 Register-Modulo -Id "php_sqlsrv" -Titulo "Instalar PHP + extensões SQL Server" `
-    -Descricao "PHP 8.4, Composer, driver ODBC 18 e as extensões sqlsrv/pdo_sqlsrv (DLLs oficiais da Microsoft)" `
+    -Descricao "PHP 8.5, Composer, driver ODBC 18 e as extensões sqlsrv/pdo_sqlsrv (DLLs oficiais da Microsoft)" `
     -Funcao ${function:Install-PhpSqlsrv}

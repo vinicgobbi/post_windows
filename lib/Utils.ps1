@@ -164,6 +164,22 @@ function Install-ChocoApp {
     return $false
 }
 
+# "winget" não é um .exe de verdade no PATH - é um App Execution Alias
+# (reparse point em %LOCALAPPDATA%\Microsoft\WindowsApps que aponta pro
+# pacote Microsoft.DesktopAppInstaller). Esse alias só é resolvido quando o
+# processo é criado pelo mecanismo normal de ativação do shell; uma
+# Scheduled Task (usada por Invoke-ComoUsuarioPadrao) não passa por isso e
+# recebe ERROR_FILE_NOT_FOUND (0x80070002) ao tentar rodar "winget" pelo
+# nome. Resolve o caminho real do winget.exe pra contornar isso.
+function Resolve-WingetExePath {
+    $pacote = Get-AppxPackage -Name "Microsoft.DesktopAppInstaller" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($pacote) {
+        $candidato = Join-Path $pacote.InstallLocation "winget.exe"
+        if (Test-Path $candidato) { return $candidato }
+    }
+    return "winget"
+}
+
 # Roda um comando como o usuário padrão (token não elevado), mesmo com este
 # script rodando como Administrador. Existe para apps cujo pacote falha ao
 # instalar quando o winget roda em processo elevado (ver ScopeUsuario em
@@ -200,8 +216,10 @@ function Invoke-ComoUsuarioPadrao {
 # objetivo é sempre tentar automatizar, mesmo fora da "loja" principal.
 #
 # -ScopeUsuario: para apps que falham ao instalar rodando elevado (ex.:
-# Spotify - causa exata ainda não confirmada, ver comentário em config.ps1),
-# roda desalevado via Invoke-ComoUsuarioPadrao.
+# Spotify/WhatsApp, ver comentário em config.ps1), roda desalevado via
+# Invoke-ComoUsuarioPadrao, usando o caminho real do winget.exe (ver
+# Resolve-WingetExePath) já que o alias "winget" não resolve numa
+# Scheduled Task.
 function Install-WingetApp {
     param(
         [Parameter(Mandatory)][string]$Id,
@@ -220,7 +238,7 @@ function Install-WingetApp {
     $argumentos = @('install', '--id', $Id, '-e', '--silent', '--accept-source-agreements', '--accept-package-agreements') + $ArgsExtra
 
     if ($ScopeUsuario) {
-        $codigoSaida = Invoke-ComoUsuarioPadrao -FilePath "winget" -ArgumentList ($argumentos -join ' ')
+        $codigoSaida = Invoke-ComoUsuarioPadrao -FilePath (Resolve-WingetExePath) -ArgumentList ($argumentos -join ' ')
     } else {
         $proc = Start-Process -FilePath "winget" -ArgumentList $argumentos -Wait -PassThru -WindowStyle Hidden
         $codigoSaida = $proc.ExitCode

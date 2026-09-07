@@ -25,12 +25,12 @@ $script:AppsDevTools = @(
 $script:AppsComunicacaoMidia = @(
     @{ Id = "Telegram.TelegramDesktop"; Nome = "Telegram" }
     @{ Id = "Vencord.Vesktop"; Nome = "Vesktop (Discord + Vencord já embutido)" }
-    # ScopeUsuario: Spotify falha ao instalar via winget quando o script
-    # roda elevado (causa exata não confirmada - não é pacote da Store,
-    # apesar do formato do Id sugerir isso a princípio). WhatsApp recebeu o
-    # mesmo tratamento preventivamente por ser um caso similar (app novo
-    # neste script, ainda sem teste real). Ver Invoke-ComoUsuarioPadrao em
-    # lib/Utils.ps1.
+    # ScopeUsuario: Spotify e WhatsApp falhavam ao instalar via winget quando
+    # o script roda elevado, com ERROR_FILE_NOT_FOUND (0x80070002) - causa
+    # confirmada em 2026-09-07: nada a ver com o app em si, é o alias
+    # "winget" (App Execution Alias) não sendo resolvido dentro da Scheduled
+    # Task usada por Invoke-ComoUsuarioPadrao. Corrigido resolvendo o
+    # caminho real do winget.exe (ver Resolve-WingetExePath em lib/Utils.ps1).
     @{ Id = "Spotify.Spotify"; Nome = "Spotify"; ScopeUsuario = $true }
     @{ Id = "WhatsApp.WhatsApp"; Nome = "WhatsApp"; ScopeUsuario = $true }
     @{ Id = "VideoLAN.VLC"; Nome = "VLC" }

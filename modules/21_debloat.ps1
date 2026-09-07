@@ -62,6 +62,18 @@
             Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue | Out-Null
     }
 
+    # Desliga o Game DVR/Game Bar (captura de clipes em segundo plano) - com
+    # a família Xbox/Game Bar removida acima, jogos em tela cheia (DirectX/
+    # OpenGL exclusive) passam a abrir um diálogo pedindo pra habilitar o
+    # "ms-gamingoverlay" na primeira vez; essas duas chaves evitam esse diálogo.
+    $gameDvrKey = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR"
+    New-Item -Path $gameDvrKey -Force | Out-Null
+    Set-ItemProperty -Path $gameDvrKey -Name "AppCaptureEnabled" -Value 0 -Type DWord -Force
+
+    $gameConfigStoreKey = "HKCU:\System\GameConfigStore"
+    New-Item -Path $gameConfigStoreKey -Force | Out-Null
+    Set-ItemProperty -Path $gameConfigStoreKey -Name "GameDVR_Enabled" -Value 0 -Type DWord -Force
+
     # Desliga a reinstalação automática de "apps sugeridos" e os anúncios do menu Iniciar.
     #
     # NÃO usar "DisableWindowsConsumerFeatures" aqui: essa política também
@@ -109,5 +121,5 @@
 }
 
 Register-Modulo -Id "debloat" -Titulo "Remover bloatware do Windows" `
-    -Descricao "Remove apps pré-instalados (incl. família Xbox/Game Bar, Cortana, Copilot, Bing Search) e desativa apps/anúncios sugeridos, busca web e tarefas de telemetria" `
+    -Descricao "Remove apps pré-instalados (incl. família Xbox/Game Bar, Cortana, Copilot, Bing Search), desativa Game DVR (evita o diálogo do ms-gamingoverlay) e desliga apps/anúncios sugeridos, busca web e tarefas de telemetria" `
     -Funcao ${function:Remove-BloatwareWindows}
