@@ -164,15 +164,51 @@ function Install-ChocoApp {
     return $false
 }
 
+# Roda um comando como o usuário padrão (token não elevado), mesmo com este
+# script rodando como Administrador. Existe para apps cujo pacote falha ao
+# instalar quando o winget roda em processo elevado (ver ScopeUsuario em
+# Install-WingetApp). Usa uma tarefa agendada temporária com RunLevel
+# "Limited" - é a forma suportada de "desalevear" a partir de um processo
+# já elevado sem pedir credenciais de novo.
+function Invoke-ComoUsuarioPadrao {
+    param(
+        [Parameter(Mandatory)][string]$FilePath,
+        [string]$ArgumentList = ""
+    )
+
+    $taskName = "PostWindows_Deelevate_$([guid]::NewGuid().ToString('N'))"
+    try {
+        $action = New-ScheduledTaskAction -Execute $FilePath -Argument $ArgumentList
+        $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
+        $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 10)
+        Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal -Settings $settings -Force | Out-Null
+        Start-ScheduledTask -TaskName $taskName
+
+        do {
+            Start-Sleep -Milliseconds 500
+            $estado = (Get-ScheduledTask -TaskName $taskName).State
+        } while ($estado -eq "Running")
+
+        return (Get-ScheduledTaskInfo -TaskName $taskName).LastTaskResult
+    } finally {
+        Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+    }
+}
+
 # Instala um app pelo Id do winget. Se não existir no winget (ChocoFallback
 # informado) ou a instalação falhar, tenta o Chocolatey em seguida - o
 # objetivo é sempre tentar automatizar, mesmo fora da "loja" principal.
+#
+# -ScopeUsuario: para apps que falham ao instalar rodando elevado (ex.:
+# Spotify - causa exata ainda não confirmada, ver comentário em config.ps1),
+# roda desalevado via Invoke-ComoUsuarioPadrao.
 function Install-WingetApp {
     param(
         [Parameter(Mandatory)][string]$Id,
         [string]$Nome = $Id,
         [string]$ChocoFallback,
-        [string[]]$ArgsExtra = @()
+        [string[]]$ArgsExtra = @(),
+        [switch]$ScopeUsuario
     )
 
     if (Test-WingetAppInstalado -Id $Id) {
@@ -182,15 +218,22 @@ function Install-WingetApp {
 
     Write-Info "Instalando $Nome..."
     $argumentos = @('install', '--id', $Id, '-e', '--silent', '--accept-source-agreements', '--accept-package-agreements') + $ArgsExtra
-    $proc = Start-Process -FilePath "winget" -ArgumentList $argumentos -Wait -PassThru -WindowStyle Hidden
-    if ($proc.ExitCode -eq 0) {
+
+    if ($ScopeUsuario) {
+        $codigoSaida = Invoke-ComoUsuarioPadrao -FilePath "winget" -ArgumentList ($argumentos -join ' ')
+    } else {
+        $proc = Start-Process -FilePath "winget" -ArgumentList $argumentos -Wait -PassThru -WindowStyle Hidden
+        $codigoSaida = $proc.ExitCode
+    }
+
+    if ($codigoSaida -eq 0) {
         Write-Sucesso "$Nome instalado."
         Update-SessionPath
         if ($script:WingetInstaladosCache) { $script:WingetInstaladosCache += "`n$Id" }
         return $true
     }
 
-    Write-Aviso "winget não conseguiu instalar $Nome (código $($proc.ExitCode))."
+    Write-Aviso "winget não conseguiu instalar $Nome (código $codigoSaida)."
     if ($ChocoFallback) {
         return Install-ChocoApp -Id $ChocoFallback -Nome $Nome
     }

@@ -25,7 +25,14 @@ $script:AppsDevTools = @(
 $script:AppsComunicacaoMidia = @(
     @{ Id = "Telegram.TelegramDesktop"; Nome = "Telegram" }
     @{ Id = "Vencord.Vesktop"; Nome = "Vesktop (Discord + Vencord já embutido)" }
-    @{ Id = "Spotify.Spotify"; Nome = "Spotify" }
+    # ScopeUsuario: Spotify falha ao instalar via winget quando o script
+    # roda elevado (causa exata não confirmada - não é pacote da Store,
+    # apesar do formato do Id sugerir isso a princípio). WhatsApp recebeu o
+    # mesmo tratamento preventivamente por ser um caso similar (app novo
+    # neste script, ainda sem teste real). Ver Invoke-ComoUsuarioPadrao em
+    # lib/Utils.ps1.
+    @{ Id = "Spotify.Spotify"; Nome = "Spotify"; ScopeUsuario = $true }
+    @{ Id = "WhatsApp.WhatsApp"; Nome = "WhatsApp"; ScopeUsuario = $true }
     @{ Id = "VideoLAN.VLC"; Nome = "VLC" }
     @{ Id = "OBSProject.OBSStudio"; Nome = "OBS Studio" }
 )
