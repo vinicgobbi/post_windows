@@ -61,9 +61,9 @@ $script:DotfilesRepoUrl = "https://github.com/vinicgobbi/Dotfiles.git"
 
 $script:AppsJogos = @(
     @{ Id = "Valve.Steam"; Nome = "Steam" }
+    # Heroic já cobre Epic Games, GOG e Amazon Games numa cliente só - não
+    # faz sentido instalar os launchers oficiais dessas lojas em paralelo.
     @{ Id = "HeroicGamesLauncher.HeroicGamesLauncher"; Nome = "Heroic Games Launcher" }
-    @{ Id = "EpicGames.EpicGamesLauncher"; Nome = "Epic Games Launcher" }
-    @{ Id = "GOG.Galaxy"; Nome = "GOG Galaxy" }
     @{ Id = "PrismLauncher.PrismLauncher"; Nome = "Prism Launcher" }
 )
 
