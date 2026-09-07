@@ -66,9 +66,23 @@
     # antigo de "acelerar SSD" - a própria Microsoft recomenda manter ligado,
     # ele ajuda no cache de apps usados com frequência mesmo em SSD/NVMe.
 
-    Write-Sucesso "Otimizações de desempenho aplicadas (Delivery Optimization, Storage Sense, Edge Startup Boost, startup do Docker/Steam/GOG, indexação, exclusões do Defender e energia)."
+    # --- Hibernação: desliga só em desktop -----------------------------
+    # hiberfil.sys ocupa espaço em disco proporcional à RAM (vários GB) sem
+    # servir pra nada numa máquina que não hiberna de verdade. Desligar
+    # também desativa o Fast Startup (que depende do hiberfil.sys), o que
+    # não é problema aqui: sem hibernação, Fast Startup não faz sentido de
+    # qualquer forma. Só mexe em desktop - notebook depende de hibernar ao
+    # fechar a tampa/ficar sem bateria.
+    if (Test-EhNotebook) {
+        Write-Info "Notebook detectado: mantendo hibernação ligada (fechar a tampa/bateria fraca dependem dela)."
+    } else {
+        powercfg /hibernate off 2>&1 | Out-Null
+        Write-Sucesso "Hibernação desligada (desktop detectado) - libera o espaço do hiberfil.sys."
+    }
+
+    Write-Sucesso "Otimizações de desempenho aplicadas (Delivery Optimization, Storage Sense, Edge Startup Boost, startup do Docker/Steam/GOG, indexação, exclusões do Defender, energia e hibernação)."
 }
 
 Register-Modulo -Id "performance" -Titulo "Otimizações de desempenho" `
-    -Descricao "Delivery Optimization, Storage Sense, remove apps pesados do startup, exclusões do Defender para pastas de dev e energia AC/DC - sem mexer em efeitos visuais" `
+    -Descricao "Delivery Optimization, Storage Sense, remove apps pesados do startup, exclusões do Defender para pastas de dev, energia AC/DC e hibernação (desktop) - sem mexer em efeitos visuais" `
     -Funcao ${function:Optimize-Desempenho}

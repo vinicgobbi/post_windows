@@ -32,3 +32,10 @@ function Test-IsAdministrator {
 function Test-WingetDisponivel {
     return Test-CommandExists "winget"
 }
+
+# Presença de bateria é o jeito mais direto de distinguir notebook de
+# desktop (mais confiável que o ChassisType do Win32_SystemEnclosure, que
+# alguns fabricantes preenchem errado).
+function Test-EhNotebook {
+    return [bool](Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue)
+}

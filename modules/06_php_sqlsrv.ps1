@@ -1,7 +1,60 @@
-﻿function Install-PhpSqlsrv {
-    Write-Info "Instalando PHP, driver ODBC 18 e as extensões sqlsrv/pdo_sqlsrv..."
+﻿# Composer não tem pacote no winget. Segue o método "command-line
+# installation" documentado em getcomposer.org/download.html (o mesmo usado
+# em CI/imagens Docker): baixa o composer-setup.php, confere o hash SHA-384
+# publicado pelo próprio projeto antes de rodar (não dá pra confiar cegamente
+# num script baixado) e o instalador gera o composer.phar. Como .phar não é
+# executável direto no Windows, cria um shim composer.bat ao lado.
+function Install-Composer {
+    if (Test-CommandExists "composer") {
+        Write-Sucesso "Composer já está instalado."
+        return
+    }
+    if (-not (Test-CommandExists "php")) {
+        Write-Aviso "php.exe não encontrado no PATH; pulando instalação do Composer."
+        return
+    }
+
+    Write-Info "Instalando Composer..."
+    $composerDir = "$env:ProgramData\Composer"
+    New-Item -ItemType Directory -Force -Path $composerDir | Out-Null
+
+    $setupPath = Join-Path $env:TEMP "composer-setup.php"
+    Invoke-DownloadComRetry -Url "https://getcomposer.org/installer" -Destino $setupPath
+
+    $assinaturaEsperada = (Invoke-RestMethod -Uri "https://composer.github.io/installer.sig").Trim()
+    $assinaturaReal = (Get-FileHash -Path $setupPath -Algorithm SHA384).Hash.ToLower()
+    if ($assinaturaReal -ne $assinaturaEsperada) {
+        Write-Aviso "Assinatura do instalador do Composer não confere; abortando por segurança."
+        Remove-Item $setupPath -Force -ErrorAction SilentlyContinue
+        return
+    }
+
+    & php.exe $setupPath "--install-dir=$composerDir" "--quiet" | Out-Null
+    Remove-Item $setupPath -Force -ErrorAction SilentlyContinue
+
+    $pharPath = Join-Path $composerDir "composer.phar"
+    if (-not (Test-Path $pharPath)) {
+        Write-Aviso "composer.phar não foi gerado; instalação do Composer falhou."
+        return
+    }
+
+    $batPath = Join-Path $composerDir "composer.bat"
+    Set-Content -Path $batPath -Value "@php `"%~dp0composer.phar`" %*" -Encoding ASCII
+
+    $pathMaquina = [System.Environment]::GetEnvironmentVariable("Path", "Machine")
+    if ($pathMaquina -notmatch [regex]::Escape($composerDir)) {
+        [System.Environment]::SetEnvironmentVariable("Path", "$pathMaquina;$composerDir", "Machine")
+    }
+    Update-SessionPath
+    Write-Sucesso "Composer instalado em $composerDir."
+}
+
+function Install-PhpSqlsrv {
+    Write-Info "Instalando PHP, Composer, driver ODBC 18 e as extensões sqlsrv/pdo_sqlsrv..."
 
     Install-WingetApp -Id "PHP.PHP.8.4" -Nome "PHP 8.4 (thread-safe)" | Out-Null
+    Update-SessionPath
+    Install-Composer
     Install-WingetApp -Id "Microsoft.msodbcsql.18" -Nome "Microsoft ODBC Driver 18 for SQL Server" | Out-Null
     Update-SessionPath
 
@@ -76,5 +129,5 @@
 }
 
 Register-Modulo -Id "php_sqlsrv" -Titulo "Instalar PHP + extensões SQL Server" `
-    -Descricao "PHP 8.4, driver ODBC 18 e as extensões sqlsrv/pdo_sqlsrv (DLLs oficiais da Microsoft)" `
+    -Descricao "PHP 8.4, Composer, driver ODBC 18 e as extensões sqlsrv/pdo_sqlsrv (DLLs oficiais da Microsoft)" `
     -Funcao ${function:Install-PhpSqlsrv}
