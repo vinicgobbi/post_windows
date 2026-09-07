@@ -12,7 +12,12 @@ $script:AppsNavegadorGit = @(
 )
 
 $script:AppsDevTools = @(
-    @{ Id = "Microsoft.VisualStudioCode"; Nome = "Visual Studio Code" }
+    # O instalador do VSCode (Inno Setup) só habilita "Adicionar ao PATH" por
+    # padrão no silent install - as opções de menu de contexto do Explorer
+    # ("Abrir com o Code" em arquivos e pastas) ficam desmarcadas a menos que
+    # sejam forçadas via /MERGETASKS. Confirmado nesta máquina em 2026-09-07:
+    # reinstalar com esse override fez as opções aparecerem no menu.
+    @{ Id = "Microsoft.VisualStudioCode"; Nome = "Visual Studio Code"; ArgsExtra = @('--override', '"/VERYSILENT /MERGETASKS=addcontextmenufiles,addcontextmenufolders"') }
     @{ Id = "Docker.DockerDesktop"; Nome = "Docker Desktop" }
     @{ Id = "DBeaver.DBeaver.Community"; Nome = "DBeaver CE" }
     @{ Id = "Postman.Postman"; Nome = "Postman" }

@@ -1,7 +1,8 @@
 ﻿function Install-FerramentasDev {
     Write-Info "Instalando VSCode, Docker Desktop, DBeaver, Postman e DevToys..."
     foreach ($app in $script:AppsDevTools) {
-        Install-WingetApp -Id $app.Id -Nome $app.Nome | Out-Null
+        $argsExtra = if ($app.ArgsExtra) { $app.ArgsExtra } else { @() }
+        Install-WingetApp -Id $app.Id -Nome $app.Nome -ArgsExtra $argsExtra | Out-Null
     }
 
     Write-Info "Instalando fnm e Node.js LTS..."
