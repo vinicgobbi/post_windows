@@ -30,14 +30,31 @@
         Remove-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" -Name $nome -ErrorAction SilentlyContinue
     }
 
+    # --- Cria a pasta de Projetos e fixa no Acesso Rápido -------------------
+    # Equivalente ao "xdg-user-dirs-update --set PROJECTS" + bookmark no
+    # gerenciador de arquivos do lado Linux (ver ambiente_usuario.sh). Sem
+    # isso a pasta nunca existia de verdade e a exclusão de indexação/Defender
+    # logo abaixo nunca tinha efeito (dependiam de um Test-Path que sempre
+    # dava falso).
+    $projPath = "$env:USERPROFILE\Projects"
+    New-Item -ItemType Directory -Force -Path $projPath | Out-Null
+
+    try {
+        $shellApp = New-Object -ComObject Shell.Application
+        # "PinToHome" é um verbo interno estável (funciona independente do
+        # idioma do Windows, ao contrário de tentar clicar no texto "Fixar no
+        # Acesso Rápido" do menu de contexto).
+        $shellApp.Namespace($projPath).Self.InvokeVerb("PinToHome")
+        [Runtime.Interopservices.Marshal]::ReleaseComObject($shellApp) | Out-Null
+    } catch {
+        Write-Aviso "Não consegui fixar $projPath no Acesso Rápido do Explorer."
+    }
+
     # --- Para de indexar o conteúdo da pasta de projetos --------------------
     # node_modules, .git, target/ etc. não precisam ter o CONTEÚDO indexado
     # para busca; isso só gera I/O de disco em segundo plano à toa.
-    $projPath = "$env:USERPROFILE\Projects"
-    if (Test-Path $projPath) {
-        $item = Get-Item $projPath -Force
-        $item.Attributes = $item.Attributes -bor [System.IO.FileAttributes]::NotContentIndexed
-    }
+    $item = Get-Item $projPath -Force
+    $item.Attributes = $item.Attributes -bor [System.IO.FileAttributes]::NotContentIndexed
 
     # --- Exclusões do Windows Defender para pastas de dev pesadas ----------
     # Só exclui o que de fato existir nesta máquina (reflete o que os outros
@@ -84,5 +101,5 @@
 }
 
 Register-Modulo -Id "performance" -Titulo "Otimizações de desempenho" `
-    -Descricao "Delivery Optimization, Storage Sense, remove apps pesados do startup, exclusões do Defender para pastas de dev, energia AC/DC e hibernação (desktop) - sem mexer em efeitos visuais" `
+    -Descricao "Cria e fixa a pasta Projects no Acesso Rápido, Delivery Optimization, Storage Sense, remove apps pesados do startup, exclusões do Defender/indexação para pastas de dev, energia AC/DC e hibernação (desktop) - sem mexer em efeitos visuais" `
     -Funcao ${function:Optimize-Desempenho}

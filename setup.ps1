@@ -108,6 +108,21 @@ try {
     }
 
     Show-ResumoFinal -Executados $executados
+} catch [System.Management.Automation.PipelineStoppedException] {
+    # Lançada quando o usuário aperta Ctrl+C enquanto o pipeline está rodando
+    # (equivalente ao "trap ... INT" do lado Linux). Sai com o mesmo código
+    # de saída (130) que o bash usa para SIGINT.
+    Write-Host ""
+    Write-Host "[-] Cancelado pelo usuário." -ForegroundColor Red
+    Write-LogLine -Nivel "ERRO" -Mensagem "Cancelado pelo usuário (Ctrl+C)."
+    exit 130
+} catch {
+    # Qualquer erro terminante que escape do try/catch por módulo do loop
+    # acima (ex.: durante o menu, a resolução de dependências ou o resumo
+    # final) - equivalente ao "trap ... ERR" do lado Linux, mostrando o
+    # número da linha em vez de deixar a stack trace padrão do PowerShell.
+    Write-Aviso "Falha inesperada (linha $($_.InvocationInfo.ScriptLineNumber)): $($_.InvocationInfo.Line.Trim())"
+    exit 1
 } finally {
     Stop-RawLog
 }
