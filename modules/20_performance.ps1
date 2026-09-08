@@ -30,6 +30,43 @@
         Remove-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" -Name $nome -ErrorAction SilentlyContinue
     }
 
+    # --- Desliga os serviços de telemetria (DiagTrack + dmwappushsvc) ------
+    # As tarefas agendadas de diagnóstico já são desligadas acima, mas os
+    # SERVIÇOS continuam ativos e geram I/O de disco/rede periódico em
+    # segundo plano. "Connected User Experiences and Telemetry" (DiagTrack) e
+    # "WAP Push Message Routing Service" (dmwappushsvc) não têm efeito
+    # percebido no dia a dia com o nível de telemetria padrão do Windows.
+    foreach ($servico in @("DiagTrack", "dmwappushsvc")) {
+        if (Get-Service -Name $servico -ErrorAction SilentlyContinue) {
+            Stop-Service -Name $servico -Force -ErrorAction SilentlyContinue
+            Set-Service -Name $servico -StartupType Disabled -ErrorAction SilentlyContinue
+        }
+    }
+
+    # --- Restringe apps em segundo plano ------------------------------------
+    # Por padrão apps UWP (incl. Xbox remanescente, Office, Copilot) podem
+    # continuar rodando/atualizando minimizados, consumindo CPU/rede à toa.
+    # Política "Let Windows apps run in the background" = 2 (negar à força) +
+    # o toggle legado equivalente, para cobrir builds mais antigas do Win10/11.
+    $appPrivacyKey = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy"
+    New-Item -Path $appPrivacyKey -Force | Out-Null
+    Set-ItemProperty -Path $appPrivacyKey -Name "LetAppsRunInBackground" -Value 2 -Type DWord -Force
+
+    $backgroundAppsKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications"
+    New-Item -Path $backgroundAppsKey -Force | Out-Null
+    Set-ItemProperty -Path $backgroundAppsKey -Name "GlobalUserDisabled" -Value 1 -Type DWord -Force
+
+    # --- NTFS: para de gravar o timestamp de último acesso ------------------
+    # Por padrão o NTFS atualiza um timestamp a cada arquivo LIDO (não só
+    # escrito) - é I/O de disco puro e desnecessário para quase todo uso.
+    fsutil behavior set disablelastaccess 1 | Out-Null
+
+    # --- Garante que o TRIM do SSD está ativo -------------------------------
+    # Sem isso a velocidade de escrita do SSD degrada ao longo do tempo;
+    # geralmente já vem certo por padrão, mas reforça explicitamente. Não faz
+    # diferença em HDD - o Windows só manda TRIM para discos que suportam.
+    fsutil behavior set disabledeletenotify 0 | Out-Null
+
     # --- Cria a pasta de Projetos e fixa no Acesso Rápido -------------------
     # Equivalente ao "xdg-user-dirs-update --set PROJECTS" + bookmark no
     # gerenciador de arquivos do lado Linux (ver ambiente_usuario.sh). Sem
@@ -97,9 +134,9 @@
         Write-Sucesso "Hibernação desligada (desktop detectado) - libera o espaço do hiberfil.sys."
     }
 
-    Write-Sucesso "Otimizações de desempenho aplicadas (Delivery Optimization, Storage Sense, Edge Startup Boost, startup do Docker/Steam/GOG, indexação, exclusões do Defender, energia e hibernação)."
+    Write-Sucesso "Otimizações de desempenho aplicadas (Delivery Optimization, Storage Sense, Edge Startup Boost, startup do Docker/Steam/GOG, telemetria, apps em segundo plano, NTFS/TRIM, indexação, exclusões do Defender, energia e hibernação)."
 }
 
 Register-Modulo -Id "performance" -Titulo "Otimizações de desempenho" `
-    -Descricao "Cria e fixa a pasta Projects no Acesso Rápido, Delivery Optimization, Storage Sense, remove apps pesados do startup, exclusões do Defender/indexação para pastas de dev, energia AC/DC e hibernação (desktop) - sem mexer em efeitos visuais" `
+    -Descricao "Cria e fixa a pasta Projects no Acesso Rápido, Delivery Optimization, Storage Sense, remove apps pesados do startup, desliga telemetria (DiagTrack) e apps em segundo plano, NTFS sem timestamp de acesso, TRIM do SSD, exclusões do Defender/indexação para pastas de dev, energia AC/DC e hibernação (desktop) - sem mexer em efeitos visuais" `
     -Funcao ${function:Optimize-Desempenho}
